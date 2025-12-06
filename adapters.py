@@ -5,5 +5,6 @@ from .adapters import (
     SiliconFlowAdapter,
     OpenRouterAdapter,
     ModelScopeAdapter,
+    GeminiImageAdapter,
     get_adapter,
 )

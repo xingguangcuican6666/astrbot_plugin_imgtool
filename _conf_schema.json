@@ -2,7 +2,7 @@
   "provider": {
     "description": "模型提供商（siliconflow / openrouter / custom）",
     "type": "string",
-    "options": ["siliconflow", "openrouter", "modelscope", "custom"],
+    "options": ["siliconflow", "openrouter", "modelscope", "gemini-image", "custom"],
     "default": "siliconflow"
   },
   "base_url": {

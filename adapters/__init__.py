@@ -4,13 +4,16 @@ from .custom_http import OpenAIImagesAdapter as CustomHTTPAdapter
 from .siliconflow import SiliconFlowAdapter
 from .openrouter import OpenRouterAdapter
 from .modelscope import ModelScopeAdapter
+from .gemini_image import GeminiImageAdapter
 
 _REGISTRY: dict[str, ImageProviderAdapter] = {
     "siliconflow": SiliconFlowAdapter(),
     "openrouter": OpenRouterAdapter(),
     "modelscope": ModelScopeAdapter(),
+    "gemini-image": GeminiImageAdapter(),
     "custom": CustomHTTPAdapter(),
 }
+
 
 def get_adapter(name: str) -> ImageProviderAdapter:
     return _REGISTRY.get((name or "").lower(), CustomHTTPAdapter())
