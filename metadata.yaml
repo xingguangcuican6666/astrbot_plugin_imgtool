@@ -1,0 +1,5 @@
+name: astrbot_plugin_imgtool
+author: your_name
+version: 0.1.0
+intro: "图像生成 LLM 工具，支持多 Provider（硅基流动 / ModelScope / OpenRouter / 自定义）"
+repo: "https://example.com/your/repo"

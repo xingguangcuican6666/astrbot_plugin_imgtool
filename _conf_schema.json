@@ -1,0 +1,54 @@
+{
+  "provider": {
+    "description": "模型提供商（siliconflow / openrouter / custom）",
+    "type": "string",
+    "options": ["siliconflow", "openrouter", "modelscope", "custom"],
+    "default": "siliconflow"
+  },
+  "base_url": {
+    "description": "仅 provider=custom 时使用；必须填写完整端点：https://your.host/v1/images/generations",
+    "type": "string",
+    "default": "",
+    "hint": "在 provider=siliconflow 或 openrouter 时将自动使用官方端点并忽略此项"
+  },
+  "model": {
+    "hint": "图像模型（自由填写，例如 Qwen/Qwen-Image / Kwai-Kolors/Kolors）",
+    "type": "string",
+    "default": "Qwen/Qwen-Image"
+  },
+  "edit_model": {
+    "hint": "编辑模型别名映射（当函数调用传入 model=edit 时使用）",
+    "type": "string",
+    "default": "Qwen/Qwen-Image-Edit"
+  },
+  "api_key": {
+    "hint": "API Key（Bearer ...）",
+    "type": "string",
+    "obvious_hint": true
+  },
+  "save_dir": {
+    "hint": "保存图片的相对目录（位于 AstrBot/data 下）",
+    "type": "string",
+    "default": "images/astrbot_plugin_imgtool"
+  },
+  "defaults": {
+    "hint": "默认推理参数",
+    "type": "object",
+    "items": {
+      "image_size": {"hint": "分辨率，默认1024x1024","type": "string","default": "1024x1024"},
+      "num_inference_steps": {"hint": "步数","type": "int","default": 20},
+      "guidance_scale": {"hint": "提示词遵循度","type": "float","default": 7.5},
+      "batch_size": {"hint": "输出图片数量(1-4)","type": "int","default": 1}
+    }
+  },
+  "openrouter_referer": {
+    "description": "OpenRouter 排名用 Referer（可选）",
+    "type": "string",
+    "default": ""
+  },
+  "openrouter_title": {
+    "description": "OpenRouter 排名用站点标识 X-Title（可选）",
+    "type": "string",
+    "default": ""
+  }
+}
