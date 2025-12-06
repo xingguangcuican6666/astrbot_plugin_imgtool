@@ -13,10 +13,10 @@ import astrbot.api.message_components as Comp
 from astrbot.api.event import filter, AstrMessageEvent, MessageEventResult
 from astrbot.api.star import Context, Star, register
 from astrbot.api import AstrBotConfig, logger as logger
-from astrbot.api.all import llm_tool # 若导入失败，可改成 from astrbot.api.all import llm_tool
 
 from .adapters import ImageProviderAdapter
 from .adapters import get_adapter
+from .tools import ImagineTool
 
 PLUGIN_ID = "astrbot_plugin_imgtool"
 
@@ -53,6 +53,22 @@ class ImgToolPlugin(Star):
             self._migrate_legacy_config()
         except Exception as e:
             logger.error(f"[{PLUGIN_ID}] migrate config failed: {e}", exc_info=True)
+
+        # 注册 LLM Tool：imagine（供 LLM 调用的图片生成工具）
+        try:
+            self.context.add_llm_tools(ImagineTool(plugin=self))
+            logger.info(f"[{PLUGIN_ID}] LLM tool 'imagine' registered via add_llm_tools")
+        except Exception as e:
+            # 兼容旧版本：直接往 llm_tools.func_list 里追加
+            try:
+                tool_mgr = self.context.provider_manager.llm_tools
+                tool_mgr.func_list.append(ImagineTool(plugin=self))
+                logger.info(f"[{PLUGIN_ID}] LLM tool 'imagine' registered via legacy func_list")
+            except Exception as ee:
+                logger.error(
+                    f"[{PLUGIN_ID}] register LLM tool 'imagine' failed: add_llm_tools={e}; legacy={ee}",
+                    exc_info=True,
+                )
 
     # --- 工具：把本地/HTTP(S) 图片转成 PNG 并内联为 data URL ---
     async def _to_data_url(self, src: str) -> str | None:
@@ -412,8 +428,8 @@ class ImgToolPlugin(Star):
 
         yield event.plain_result(f"已将文生图 provider 切换为：{provider}")
 
-    # ------------- LLM 工具：imagine -------------
-    @llm_tool(name="imagine")
+    # ------------- LLM 工具实现：imagine -------------
+    # 注意：不再通过装饰器直接注册为 LLM 工具，而是由 ImagineTool 调用此方法。
     async def imagine(
         self,
         event: AstrMessageEvent,
@@ -430,7 +446,7 @@ class ImgToolPlugin(Star):
         image2: str = "",
         image3: str = "",
         use_refs: bool = False,
-    ) -> MessageEventResult:
+    ) -> str:
         """生成图片。
 
         Args:
@@ -503,14 +519,16 @@ class ImgToolPlugin(Star):
         # 4) Edit 系列必须要参考图，做友好校验
         if ("image-edit" in m):
             if not im1:
-                yield event.plain_result("使用编辑模型需要参考图：请附加图片或把 use_refs 设为 true。")
-                return
+                mer = event.plain_result("使用编辑模型需要参考图：请附加图片或把 use_refs 设为 true。")
+                await event.send(mer)
+                return mer.get_plain_text()
             # 接受 data URL 或 http(s) 直链，其他情况视为无效
             if not (isinstance(im1, str) and (im1.startswith("data:image/") or im1.startswith("http://") or im1.startswith("https://"))):
-                yield event.plain_result("参考图格式不支持，请上传图片或提供可直链 URL。")
-                return
+                mer = event.plain_result("参考图格式不支持，请上传图片或提供可直链 URL。")
+                await event.send(mer)
+                return mer.get_plain_text()
 
-        yield await self._generate_and_reply(
+        mer = await self._generate_and_reply(
             event,
             prompt=prompt,
             model=final_model,
@@ -525,3 +543,5 @@ class ImgToolPlugin(Star):
             image2=im2,
             image3=im3,
         )
+        await event.send(mer)
+        return mer.get_plain_text()
