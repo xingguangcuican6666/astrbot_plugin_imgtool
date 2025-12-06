@@ -48,6 +48,12 @@ class ImgToolPlugin(Star):
         os.makedirs(self.save_dir, exist_ok=True)
         logger.info(f"[{PLUGIN_ID}] save_dir = {self.save_dir}")
 
+        # 迁移旧版平铺配置到按 provider 分组的配置里（兼容已有用户）
+        try:
+            self._migrate_legacy_config()
+        except Exception as e:
+            logger.error(f"[{PLUGIN_ID}] migrate config failed: {e}", exc_info=True)
+
     # --- 工具：把本地/HTTP(S) 图片转成 PNG 并内联为 data URL ---
     async def _to_data_url(self, src: str) -> str | None:
         if not src:
@@ -151,9 +157,83 @@ class ImgToolPlugin(Star):
         return imgs[:max_n]
 
     # ------------- 公共工具方法 -------------
+    def _current_provider(self) -> str:
+        return (self.config.get("provider") or "siliconflow").lower()
+
+    def _get_provider_config(self, provider: str | None = None) -> dict:
+        if provider is None:
+            provider = self._current_provider()
+        cfg = self.config.get(provider) or {}
+        return cfg if isinstance(cfg, dict) else {}
+
+    def _prepare_flat_config_for_provider(self, provider: str | None = None) -> None:
+        """将按 provider 分组的配置摊平到顶层，兼容旧版读取方式。"""
+        if provider is None:
+            provider = self._current_provider()
+        cfg = self._get_provider_config(provider)
+        if not isinstance(cfg, dict) or not cfg:
+            return
+
+        def _set_if_present(key: str, cfg_key: str | None = None) -> None:
+            k = cfg_key or key
+            if k in cfg and cfg[k] not in (None, ""):
+                self.config[key] = cfg[k]
+
+        _set_if_present("api_key")
+        _set_if_present("model")
+        _set_if_present("edit_model")
+        if provider == "custom":
+            _set_if_present("base_url")
+        if provider == "gemini-image":
+            _set_if_present("base_url")
+        if provider == "openrouter":
+            _set_if_present("openrouter_referer", "referer")
+            _set_if_present("openrouter_title", "title")
+
+    def _migrate_legacy_config(self) -> None:
+        """把旧版全局配置转换为按 provider 分组的配置。"""
+        changed = False
+
+        provider = self._current_provider()
+        legacy_api_key = (self.config.get("api_key") or "").strip()
+        legacy_model = (self.config.get("model") or "").strip()
+        legacy_edit_model = (self.config.get("edit_model") or "").strip()
+
+        if provider in {"siliconflow", "openrouter", "modelscope", "gemini-image", "doubao", "custom"}:
+            section = self._get_provider_config(provider)
+            if legacy_api_key and not section.get("api_key"):
+                section["api_key"] = legacy_api_key
+                changed = True
+            if legacy_model and not section.get("model"):
+                section["model"] = legacy_model
+                changed = True
+            if legacy_edit_model and not section.get("edit_model") and provider in {"siliconflow", "openrouter", "custom"}:
+                section["edit_model"] = legacy_edit_model
+                changed = True
+            self.config[provider] = section
+
+        legacy_ref = (self.config.get("openrouter_referer") or "").strip()
+        legacy_title = (self.config.get("openrouter_title") or "").strip()
+        if legacy_ref or legacy_title:
+            openrouter_cfg = self._get_provider_config("openrouter")
+            if legacy_ref and not openrouter_cfg.get("referer"):
+                openrouter_cfg["referer"] = legacy_ref
+                changed = True
+            if legacy_title and not openrouter_cfg.get("title"):
+                openrouter_cfg["title"] = legacy_title
+                changed = True
+            self.config["openrouter"] = openrouter_cfg
+
+        if changed and hasattr(self.config, "save_config"):
+            try:
+                self.config.save_config()
+                logger.info(f"[{PLUGIN_ID}] legacy config migrated to per-provider sections")
+            except Exception as e:
+                logger.error(f"[{PLUGIN_ID}] save migrated config failed: {e}", exc_info=True)
+
+    # ------------- 公共工具方法 -------------
     def _pick_adapter(self) -> ImageProviderAdapter:
-        provider = (self.config.get("provider") or "siliconflow").lower()
-        return get_adapter(provider)
+        return get_adapter(self._current_provider())
 
     def _platform_url_only(self, event: AstrMessageEvent) -> bool:
         # 钉钉仅支持 URL 图（其他平台多数均支持本地文件 & URL）。
@@ -217,6 +297,8 @@ class ImgToolPlugin(Star):
         if not prompt or not prompt.strip():
             return event.plain_result("提示词为空。")
 
+        provider = self._current_provider()
+        self._prepare_flat_config_for_provider(provider)
         api_key = self.config.get("api_key", "").strip()
         if not api_key:
             return event.plain_result("请先在插件配置中填写 api_key。")
@@ -294,6 +376,42 @@ class ImgToolPlugin(Star):
         """/img <提示词>  直接生成图片（使用配置默认参数）。"""
         yield await self._generate_and_reply(event, prompt=prompt)
 
+    # ------------- 指令：/imgprovider -------------
+    @filter.command("imgprovider")
+    async def imgprovider(self, event: AstrMessageEvent, provider: str = ""):
+        """/imgprovider [provider]  查看或切换文生图 provider。
+
+        不带参数：显示当前 provider 和可选列表；
+        带参数：切换 provider 并保存配置（同时保留各自的 api_key 和模型配置）。
+        """
+        provider = (provider or "").strip().lower()
+        valid = ["siliconflow", "openrouter", "modelscope", "gemini-image", "custom"]
+
+        if not provider:
+            current = self._current_provider()
+            choices = ", ".join(valid)
+            yield event.plain_result(f"当前文生图 provider：{current}\n可选：{choices}")
+            return
+
+        if provider not in valid:
+            choices = ", ".join(valid)
+            yield event.plain_result(f"无效 provider：{provider}\n可选：{choices}")
+            return
+
+        self.config["provider"] = provider
+        # 切换后即刻按新 provider 摊平一次，方便后续使用
+        self._prepare_flat_config_for_provider(provider)
+
+        if hasattr(self.config, "save_config"):
+            try:
+                self.config.save_config()
+            except Exception as e:
+                logger.error(f"[{PLUGIN_ID}] save provider config failed: {e}", exc_info=True)
+                yield event.plain_result(f"已切换为 {provider}，但保存配置失败：{e}")
+                return
+
+        yield event.plain_result(f"已将文生图 provider 切换为：{provider}")
+
     # ------------- LLM 工具：imagine -------------
     @llm_tool(name="imagine")
     async def imagine(
@@ -330,6 +448,8 @@ class ImgToolPlugin(Star):
             image3(string): 参考图3（仅 Qwen-Image-Edit-2509）
             use_refs(boolean): 是否自动使用本条消息里的图片/被引用消息里的图片作为参考图
         """
+        provider = self._current_provider()
+        self._prepare_flat_config_for_provider(provider)
         # 1) 解析最终要用的模型名（如果函数参数没给，就用配置里的）
         final_model = (model or self.config.get("model") or "Qwen/Qwen-Image").strip()
         # 允许使用别名：例如传入 "edit" 自动映射为配置的编辑模型

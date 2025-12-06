@@ -1,54 +1,218 @@
 {
   "provider": {
-    "description": "模型提供商（siliconflow / openrouter / custom）",
+    "description": "模型提供商（siliconflow / openrouter / modelscope / gemini-image / doubao / custom）",
     "type": "string",
-    "options": ["siliconflow", "openrouter", "modelscope", "gemini-image", "custom"],
-    "default": "siliconflow"
+    "options": ["siliconflow", "openrouter", "modelscope", "gemini-image", "doubao", "custom"],
+    "default": "siliconflow",
+    "invisible": true
   },
-  "base_url": {
-    "description": "仅 provider=custom 时使用；必须填写完整端点：https://your.host/v1/images/generations",
-    "type": "string",
-    "default": "",
-    "hint": "在 provider=siliconflow 或 openrouter 时将自动使用官方端点并忽略此项"
-  },
-  "model": {
-    "hint": "图像模型（自由填写，例如 Qwen/Qwen-Image / Kwai-Kolors/Kolors）",
-    "type": "string",
-    "default": "Qwen/Qwen-Image"
-  },
-  "edit_model": {
-    "hint": "编辑模型别名映射（当函数调用传入 model=edit 时使用）",
-    "type": "string",
-    "default": "Qwen/Qwen-Image-Edit"
-  },
-  "api_key": {
-    "hint": "API Key（Bearer ...）",
-    "type": "string",
-    "obvious_hint": true
-  },
+
   "save_dir": {
     "hint": "保存图片的相对目录（位于 AstrBot/data 下）",
     "type": "string",
     "default": "images/astrbot_plugin_imgtool"
   },
+
   "defaults": {
     "hint": "默认推理参数",
     "type": "object",
     "items": {
-      "image_size": {"hint": "分辨率，默认1024x1024","type": "string","default": "1024x1024"},
-      "num_inference_steps": {"hint": "步数","type": "int","default": 20},
-      "guidance_scale": {"hint": "提示词遵循度","type": "float","default": 7.5},
-      "batch_size": {"hint": "输出图片数量(1-4)","type": "int","default": 1}
+      "image_size": {
+        "hint": "分辨率，默认 1024x1024",
+        "type": "string",
+        "default": "1024x1024"
+      },
+      "num_inference_steps": {
+        "hint": "步数",
+        "type": "int",
+        "default": 20
+      },
+      "guidance_scale": {
+        "hint": "提示词遵循度",
+        "type": "float",
+        "default": 7.5
+      },
+      "batch_size": {
+        "hint": "输出图片数量(1-4)",
+        "type": "int",
+        "default": 1
+      }
     }
   },
-  "openrouter_referer": {
-    "description": "OpenRouter 排名用 Referer（可选）",
+
+  "doubao": {
+    "description": "Doubao 即梦（Seedream）图像生成配置（可选）",
+    "type": "object",
+    "items": {
+      "api_key": {
+        "description": "Doubao API Key（Bearer ...）",
+        "type": "string",
+        "obvious_hint": true
+      },
+      "model": {
+        "description": "即梦模型 ID，例如 doubao-seedream-4.5、doubao-seedream-4.0 等",
+        "type": "string",
+        "default": "doubao-seedream-4.5"
+      }
+    }
+  },
+
+  "siliconflow": {
+    "description": "SiliconFlow 图像生成配置（可选）",
+    "type": "object",
+    "items": {
+      "api_key": {
+        "description": "SiliconFlow API Key（Bearer ...）",
+        "type": "string",
+        "obvious_hint": true
+      },
+      "model": {
+        "description": "图像模型名称，例如 Qwen/Qwen-Image",
+        "type": "string",
+        "default": "Qwen/Qwen-Image"
+      },
+      "edit_model": {
+        "description": "编辑模型别名映射，函数传入 model=edit 时使用",
+        "type": "string",
+        "default": "Qwen/Qwen-Image-Edit"
+      }
+    }
+  },
+
+  "openrouter": {
+    "description": "OpenRouter 图像生成配置（可选）",
+    "type": "object",
+    "items": {
+      "api_key": {
+        "description": "OpenRouter API Key（Bearer ...）",
+        "type": "string",
+        "obvious_hint": true
+      },
+      "model": {
+        "description": "OpenRouter 模型名称，例如 google/gemini-2.0-flash-exp",
+        "type": "string",
+        "default": ""
+      },
+      "edit_model": {
+        "description": "编辑模型别名映射，可选",
+        "type": "string",
+        "default": ""
+      },
+      "referer": {
+        "description": "OpenRouter 排名用 Referer（可选）",
+        "type": "string",
+        "default": ""
+      },
+      "title": {
+        "description": "OpenRouter 排名用站点标题 X-Title（可选）",
+        "type": "string",
+        "default": ""
+      }
+    }
+  },
+
+  "modelscope": {
+    "description": "ModelScope 图像生成配置（可选）",
+    "type": "object",
+    "items": {
+      "api_key": {
+        "description": "ModelScope API Key（Bearer ...）",
+        "type": "string",
+        "obvious_hint": true
+      },
+      "model": {
+        "description": "ModelScope 模型名称，例如 damo/cv_unet_text2img",
+        "type": "string",
+        "default": ""
+      }
+    }
+  },
+
+  "gemini-image": {
+    "description": "Google Gemini 图像生成配置（可选）",
+    "type": "object",
+    "items": {
+      "api_key": {
+        "description": "Gemini API Key（通常来自 Google AI Studio）",
+        "type": "string",
+        "obvious_hint": true
+      },
+      "model": {
+        "description": "Gemini 图像模型名称",
+        "type": "string",
+        "default": "gemini-3-pro-image-preview"
+      },
+      "base_url": {
+        "description": "可选：自定义 Gemini API 基础地址",
+        "type": "string",
+        "default": "",
+        "hint": "留空则使用 https://generativelanguage.googleapis.com/v1beta"
+      }
+    }
+  },
+
+  "custom": {
+    "description": "自定义 OpenAI Images 接口配置（可选）",
+    "type": "object",
+    "items": {
+      "base_url": {
+      "description": "仅 provider=custom 时使用；必须是完整 /v1/images/generations 接口地址",
+        "type": "string",
+        "default": "",
+      "hint": "例如：https://your.host/v1/images/generations"
+      },
+      "api_key": {
+        "description": "自定义 Provider 的 API Key（Bearer ...）",
+        "type": "string",
+        "obvious_hint": true
+      },
+      "model": {
+        "description": "图像模型名称，例如 Qwen/Qwen-Image 或 Kwai-Kolors/Kolors",
+        "type": "string",
+        "default": "Qwen/Qwen-Image"
+      },
+      "edit_model": {
+        "description": "编辑模型别名映射，函数传入 model=edit 时使用",
+        "type": "string",
+        "default": "Qwen/Qwen-Image-Edit"
+      }
+    }
+  },
+
+  "base_url": {
+    "description": "高级：旧版全局 base_url（主要用于兼容，通常可留空）",
     "type": "string",
-    "default": ""
+    "default": "",
+    "invisible": true
+  },
+  "model": {
+    "description": "高级：旧版全局模型名称（用于兼容）",
+    "type": "string",
+    "default": "Qwen/Qwen-Image",
+    "invisible": true
+  },
+  "edit_model": {
+    "description": "高级：旧版全局编辑模型名称（用于兼容）",
+    "type": "string",
+    "default": "Qwen/Qwen-Image-Edit",
+    "invisible": true
+  },
+  "api_key": {
+    "description": "高级：旧版全局 API Key（用于兼容）",
+    "type": "string",
+    "obvious_hint": true,
+    "invisible": true
+  },
+  "openrouter_referer": {
+    "description": "高级：旧版 OpenRouter 排名用 Referer（用于兼容）",
+    "type": "string",
+    "default": "",
+    "invisible": true
   },
   "openrouter_title": {
-    "description": "OpenRouter 排名用站点标识 X-Title（可选）",
+    "description": "高级：旧版 OpenRouter 排名用站点标题 X-Title（用于兼容）",
     "type": "string",
-    "default": ""
+    "default": "",
+    "invisible": true
   }
 }
