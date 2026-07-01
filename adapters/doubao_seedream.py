@@ -1,6 +1,6 @@
 import aiohttp
 import json
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
 
 from astrbot.api import logger
 from .base import ImageProviderAdapter
@@ -33,6 +33,7 @@ class DoubaoSeedreamAdapter(ImageProviderAdapter):
         image2: str | None = None,
         image3: str | None = None,
         extra_headers: Dict[str, str] | None = None,
+        provider_options: Dict[str, Any] | None = None,
     ) -> Tuple[List[str], Dict]:
         # base_url 为空时使用 Doubao 官方默认的 CreateImage 接口地址。
         if base_url and base_url.strip():

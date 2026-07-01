@@ -3,11 +3,10 @@ import os
 import re
 import uuid
 import aiohttp
-import asyncio
 import base64
 import mimetypes
 from urllib.parse import urlparse
-from typing import List
+from typing import Any, List
 
 import astrbot.api.message_components as Comp
 from astrbot.api.event import filter, AstrMessageEvent, MessageEventResult
@@ -19,6 +18,14 @@ from .adapters import get_adapter
 from .tools import ImagineTool
 
 PLUGIN_ID = "astrbot_plugin_imgtool"
+XFYUN_SUPPORTED_SIZES = {
+    "768x768",
+    "1024x1024",
+    "576x1024",
+    "768x1024",
+    "1024x576",
+    "1024x768",
+}
 
 
 def _find_data_root(start_dir: str) -> str:
@@ -202,6 +209,13 @@ class ImgToolPlugin(Star):
             _set_if_present("base_url")
         if provider == "gemini-image":
             _set_if_present("base_url")
+        if provider == "xfyun":
+            _set_if_present("base_url")
+            _set_if_present("app_id")
+            _set_if_present("api_secret")
+            _set_if_present("uid")
+            _set_if_present("scheduler")
+            _set_if_present("patch_id")
         if provider == "openrouter":
             _set_if_present("openrouter_referer", "referer")
             _set_if_present("openrouter_title", "title")
@@ -215,7 +229,7 @@ class ImgToolPlugin(Star):
         legacy_model = (self.config.get("model") or "").strip()
         legacy_edit_model = (self.config.get("edit_model") or "").strip()
 
-        if provider in {"siliconflow", "openrouter", "modelscope", "gemini-image", "doubao", "custom"}:
+        if provider in {"siliconflow", "openrouter", "modelscope", "gemini-image", "doubao", "xfyun", "custom"}:
             section = self._get_provider_config(provider)
             if legacy_api_key and not section.get("api_key"):
                 section["api_key"] = legacy_api_key
@@ -227,6 +241,18 @@ class ImgToolPlugin(Star):
                 section["edit_model"] = legacy_edit_model
                 changed = True
             self.config[provider] = section
+
+        legacy_app_id = (self.config.get("app_id") or "").strip()
+        legacy_api_secret = (self.config.get("api_secret") or "").strip()
+        if provider == "xfyun":
+            section = self._get_provider_config("xfyun")
+            if legacy_app_id and not section.get("app_id"):
+                section["app_id"] = legacy_app_id
+                changed = True
+            if legacy_api_secret and not section.get("api_secret"):
+                section["api_secret"] = legacy_api_secret
+                changed = True
+            self.config["xfyun"] = section
 
         legacy_ref = (self.config.get("openrouter_referer") or "").strip()
         legacy_title = (self.config.get("openrouter_title") or "").strip()
@@ -246,6 +272,24 @@ class ImgToolPlugin(Star):
                 logger.info(f"[{PLUGIN_ID}] legacy config migrated to per-provider sections")
             except Exception as e:
                 logger.error(f"[{PLUGIN_ID}] save migrated config failed: {e}", exc_info=True)
+
+    def _xfyun_provider_options(self) -> dict[str, Any]:
+        provider_cfg = self._get_provider_config("xfyun")
+        width = 1024
+        height = 1024
+        default_size = str(self.config.get("defaults", {}).get("image_size") or "1024x1024").strip().lower()
+        if default_size in XFYUN_SUPPORTED_SIZES:
+            left, right = default_size.split("x", 1)
+            width, height = int(left), int(right)
+        return {
+            "app_id": (self.config.get("app_id") or provider_cfg.get("app_id") or "").strip(),
+            "api_secret": (self.config.get("api_secret") or provider_cfg.get("api_secret") or "").strip(),
+            "uid": (self.config.get("uid") or provider_cfg.get("uid") or "").strip(),
+            "patch_id": self.config.get("patch_id") or provider_cfg.get("patch_id"),
+            "scheduler": (self.config.get("scheduler") or provider_cfg.get("scheduler") or "DPM++ 2M Karras").strip(),
+            "width": width,
+            "height": height,
+        }
 
     # ------------- 公共工具方法 -------------
     def _pick_adapter(self) -> ImageProviderAdapter:
@@ -315,11 +359,18 @@ class ImgToolPlugin(Star):
 
         provider = self._current_provider()
         self._prepare_flat_config_for_provider(provider)
+        provider = (self.config.get("provider") or "siliconflow").lower()
         api_key = self.config.get("api_key", "").strip()
-        if not api_key:
+        provider_options: dict[str, Any] | None = None
+        if provider == "xfyun":
+            provider_options = self._xfyun_provider_options()
+            app_id = str(provider_options.get("app_id") or "").strip()
+            api_secret = str(provider_options.get("api_secret") or "").strip()
+            if not app_id or not api_key or not api_secret:
+                return event.plain_result("请先在讯飞配置中填写 app_id、api_key 和 api_secret。")
+        elif not api_key:
             return event.plain_result("请先在插件配置中填写 api_key。")
 
-        provider = (self.config.get("provider") or "siliconflow").lower()
         # 交给各 adapter 决定默认 base_url；仅 custom 严格校验完整端点（你的原始约束保留）
         extra_headers = None
         if provider == "openrouter":
@@ -338,7 +389,10 @@ class ImgToolPlugin(Star):
             base_url = base_url  # 可以留空，adapter 会兜底
 
         if not model:
-            model = (self.config.get("model") or "Qwen/Qwen-Image").strip()
+            if provider == "xfyun":
+                model = (self.config.get("model") or "").strip()
+            else:
+                model = (self.config.get("model") or "Qwen/Qwen-Image").strip()
         if not size:
             size = (self.config.get("defaults", {}).get("image_size") or "1024x1024").strip()
         if steps is None:
@@ -347,6 +401,10 @@ class ImgToolPlugin(Star):
             guidance_scale = float(self.config.get("defaults", {}).get("guidance_scale", 7.5))
         if batch_size is None:
             batch_size = int(self.config.get("defaults", {}).get("batch_size", 1))
+        if provider == "xfyun":
+            batch_size = 1
+            if not model:
+                return event.plain_result("请先在讯飞配置中填写 model（讯飞控制台中的 modelID/domain）。")
 
         adapter = self._pick_adapter()
         
@@ -367,6 +425,7 @@ class ImgToolPlugin(Star):
                 image2=image2,
                 image3=image3,
                 extra_headers=extra_headers,
+                provider_options=provider_options,
             )
         except Exception as e:
             logger.error("image generation failed", exc_info=True)
@@ -401,7 +460,7 @@ class ImgToolPlugin(Star):
         带参数：切换 provider 并保存配置（同时保留各自的 api_key 和模型配置）。
         """
         provider = (provider or "").strip().lower()
-        valid = ["siliconflow", "openrouter", "modelscope", "gemini-image", "custom"]
+        valid = ["siliconflow", "openrouter", "modelscope", "gemini-image", "doubao", "xfyun", "custom"]
 
         if not provider:
             current = self._current_provider()
@@ -467,14 +526,42 @@ class ImgToolPlugin(Star):
         provider = self._current_provider()
         self._prepare_flat_config_for_provider(provider)
         # 1) 解析最终要用的模型名（如果函数参数没给，就用配置里的）
-        final_model = (model or self.config.get("model") or "Qwen/Qwen-Image").strip()
+        if provider == "xfyun":
+            final_model = (model or self.config.get("model") or "").strip()
+        else:
+            final_model = (model or self.config.get("model") or "Qwen/Qwen-Image").strip()
         # 允许使用别名：例如传入 "edit" 自动映射为配置的编辑模型
         alias = final_model.lower()
+        if provider == "xfyun" and alias in {"edit", "qwen-edit", "qwen_image_edit", "qwen-image-edit"}:
+            mer = event.plain_result("讯飞 provider 暂不支持编辑模型别名，请直接填写讯飞控制台中的文生图 modelID/domain。")
+            await event.send(mer)
+            return mer.get_plain_text()
         if alias in {"edit", "qwen-edit", "qwen_image_edit", "qwen-image-edit"}:
             fm = (self.config.get("edit_model") or "Qwen/Qwen-Image-Edit").strip()
             if fm:
                 final_model = fm
         m = final_model.lower()
+
+        if provider == "xfyun":
+            if image or image2 or image3 or use_refs:
+                mer = event.plain_result("讯飞 provider 暂不支持参考图或 use_refs。")
+                await event.send(mer)
+                return mer.get_plain_text()
+            if cfg:
+                mer = event.plain_result("讯飞 provider 暂不支持 cfg 参数。")
+                await event.send(mer)
+                return mer.get_plain_text()
+            if not final_model:
+                mer = event.plain_result("讯飞 provider 需要配置 model（讯飞控制台中的 modelID/domain）。")
+                await event.send(mer)
+                return mer.get_plain_text()
+            sz = (size or self.config.get("defaults", {}).get("image_size") or "1024x1024").strip().lower()
+            if sz not in XFYUN_SUPPORTED_SIZES:
+                choices = ", ".join(sorted(XFYUN_SUPPORTED_SIZES))
+                mer = event.plain_result(f"讯飞 provider 仅支持以下分辨率：{choices}")
+                await event.send(mer)
+                return mer.get_plain_text()
+            batch_size = 1
 
         # 2) 可选：自动从消息里采集参考图（消息链里就能拿到图片段）
         im1, im2, im3 = image or None, image2 or None, image3 or None

@@ -1,5 +1,5 @@
 
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
 
 class ImageProviderAdapter:
     """统一图像生成接口，便于扩展不同 Provider。"""
@@ -21,5 +21,6 @@ class ImageProviderAdapter:
         image2: str | None = None,
         image3: str | None = None,
         extra_headers: Dict[str, str] | None = None,
+        provider_options: Dict[str, Any] | None = None,
     ) -> Tuple[List[str], Dict]:
         raise NotImplementedError

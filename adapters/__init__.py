@@ -6,6 +6,7 @@ from .openrouter import OpenRouterAdapter
 from .modelscope import ModelScopeAdapter
 from .gemini_image import GeminiImageAdapter
 from .doubao_seedream import DoubaoSeedreamAdapter
+from .xfyun_spark import XfyunSparkAdapter
 
 _REGISTRY: dict[str, ImageProviderAdapter] = {
     "siliconflow": SiliconFlowAdapter(),
@@ -13,6 +14,7 @@ _REGISTRY: dict[str, ImageProviderAdapter] = {
     "modelscope": ModelScopeAdapter(),
     "gemini-image": GeminiImageAdapter(),
     "doubao": DoubaoSeedreamAdapter(),
+    "xfyun": XfyunSparkAdapter(),
     "custom": CustomHTTPAdapter(),
 }
 

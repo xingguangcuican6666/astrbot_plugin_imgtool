@@ -1,6 +1,6 @@
 
 import aiohttp, json, re
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
 from astrbot.api import logger
 from .base import ImageProviderAdapter
 
@@ -13,6 +13,7 @@ class OpenAIImagesAdapter(ImageProviderAdapter):
         cfg: float | None = None, image: str | None = None,
         image2: str | None = None, image3: str | None = None,
         extra_headers: Dict[str, str] | None = None,
+        provider_options: Dict[str, Any] | None = None,
     ):
         # 允许：/images/generations 完整端点；或 /v1 / 根域名，自动补齐
         b = (base_url or "").rstrip("/")

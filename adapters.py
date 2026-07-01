@@ -6,5 +6,6 @@ from .adapters import (
     OpenRouterAdapter,
     ModelScopeAdapter,
     GeminiImageAdapter,
+    XfyunSparkAdapter,
     get_adapter,
 )

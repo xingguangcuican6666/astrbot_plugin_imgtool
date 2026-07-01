@@ -1,5 +1,5 @@
 import aiohttp, json, asyncio
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
 from astrbot.api import logger
 from .base import ImageProviderAdapter
 
@@ -23,6 +23,7 @@ class ModelScopeAdapter(ImageProviderAdapter):
         image2: str | None = None,
         image3: str | None = None,
         extra_headers: Dict[str, str] | None = None,
+        provider_options: Dict[str, Any] | None = None,
     ) -> Tuple[List[str], Dict]:
         # é»˜è®¤ç«¯ç‚¹ï¼šbase_url ç•™ç©ºæ—¶ä½¿ç”¨å®˜æ–¹çš„ç»Ÿä¸€æŽ¨ç† API
         base = (base_url or "https://api-inference.modelscope.cn/v1").rstrip("/")
@@ -178,4 +179,3 @@ class ModelScopeAdapter(ImageProviderAdapter):
         # è¶…æ—¶
         logger.error(f"[imgtool] ModelScope task timeout: {task_id}")
         return [], last_payload
-

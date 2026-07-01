@@ -1,5 +1,5 @@
 name: astrbot_plugin_imgtool
 author: xunxiing
 version: 1.0.0
-desc: "图像生成 LLM 工具，支持多 Provider（硅基流动 / ModelScope / OpenRouter / 自定义/gemini/豆包（火山）"
-repo: https://github.com/xunxiing/astrbot_plugin_imgtool
+desc: "图像生成 LLM 工具，支持多 Provider（硅基流动 / ModelScope / OpenRouter / Gemini / 豆包 / 讯飞 / 自定义）"
+repo: https://github.com/xingguangcuican6666/astrbot_plugin_imgtool

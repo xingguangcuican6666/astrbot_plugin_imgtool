@@ -1,8 +1,8 @@
 {
   "provider": {
-    "description": "模型提供商（siliconflow / openrouter / modelscope / gemini-image / doubao / custom）",
+    "description": "模型提供商（siliconflow / openrouter / modelscope / gemini-image / doubao / xfyun / custom）",
     "type": "string",
-    "options": ["siliconflow", "openrouter", "modelscope", "gemini-image", "doubao", "custom"],
+    "options": ["siliconflow", "openrouter", "modelscope", "gemini-image", "doubao", "xfyun", "custom"],
     "default": "siliconflow",
     "invisible": true
   },
@@ -18,7 +18,7 @@
     "type": "object",
     "items": {
       "image_size": {
-        "hint": "分辨率，默认 1024x1024",
+        "hint": "分辨率，默认 1024x1024；讯飞支持 768x768 / 1024x1024 / 576x1024 / 768x1024 / 1024x576 / 1024x768",
         "type": "string",
         "default": "1024x1024"
       },
@@ -151,6 +151,49 @@
     }
   },
 
+  "xfyun": {
+    "description": "讯飞 Spark 图片生成配置（可选）",
+    "type": "object",
+    "items": {
+      "app_id": {
+        "description": "讯飞应用 AppID",
+        "type": "string",
+        "obvious_hint": true
+      },
+      "api_key": {
+        "description": "讯飞 API Key",
+        "type": "string",
+        "obvious_hint": true
+      },
+      "api_secret": {
+        "description": "讯飞 API Secret",
+        "type": "string",
+        "obvious_hint": true
+      },
+      "model": {
+        "description": "讯飞图片生成 modelID/domain（从控制台获取）",
+        "type": "string",
+        "default": ""
+      },
+      "base_url": {
+        "description": "可选：自定义讯飞图片生成接口地址",
+        "type": "string",
+        "default": "",
+        "hint": "留空则使用 https://maas-api.cn-huabei-1.xf-yun.com/v2.1/tti"
+      },
+      "scheduler": {
+        "description": "可选：讯飞调度器",
+        "type": "string",
+        "default": "DPM++ 2M Karras"
+      },
+      "uid": {
+        "description": "可选：用户唯一 ID，最长 32 字符",
+        "type": "string",
+        "default": ""
+      }
+    }
+  },
+
   "custom": {
     "description": "自定义 OpenAI Images 接口配置（可选）",
     "type": "object",
@@ -201,6 +244,37 @@
     "description": "高级：旧版全局 API Key（用于兼容）",
     "type": "string",
     "obvious_hint": true,
+    "invisible": true
+  },
+  "app_id": {
+    "description": "高级：旧版全局 AppID（用于兼容讯飞）",
+    "type": "string",
+    "default": "",
+    "invisible": true
+  },
+  "api_secret": {
+    "description": "高级：旧版全局 API Secret（用于兼容讯飞）",
+    "type": "string",
+    "default": "",
+    "obvious_hint": true,
+    "invisible": true
+  },
+  "uid": {
+    "description": "高级：旧版全局 uid（用于兼容讯飞）",
+    "type": "string",
+    "default": "",
+    "invisible": true
+  },
+  "scheduler": {
+    "description": "高级：旧版全局 scheduler（用于兼容讯飞）",
+    "type": "string",
+    "default": "",
+    "invisible": true
+  },
+  "patch_id": {
+    "description": "高级：旧版全局 patch_id（用于兼容讯飞）",
+    "type": "string",
+    "default": "",
     "invisible": true
   },
   "openrouter_referer": {

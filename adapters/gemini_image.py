@@ -1,6 +1,6 @@
 import aiohttp
 import json
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
 
 from astrbot.api import logger
 from .base import ImageProviderAdapter
@@ -25,6 +25,7 @@ class GeminiImageAdapter(ImageProviderAdapter):
         image2: str | None = None,
         image3: str | None = None,
         extra_headers: Dict[str, str] | None = None,
+        provider_options: Dict[str, Any] | None = None,
     ) -> Tuple[List[str], Dict]:
         """
         Adapter for Google Gemini 3 Pro Image (preview).
@@ -179,4 +180,3 @@ class GeminiImageAdapter(ImageProviderAdapter):
             _log.error(f"[imgtool] parse Gemini image response failed: {e}", exc_info=True)
 
         return urls, data
-

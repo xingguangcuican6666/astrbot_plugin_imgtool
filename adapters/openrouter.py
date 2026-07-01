@@ -1,6 +1,6 @@
 
 import aiohttp, json
-from typing import Dict, List
+from typing import Any, Dict, List
 from astrbot.api import logger
 from .base import ImageProviderAdapter
 
@@ -13,6 +13,7 @@ class OpenRouterAdapter(ImageProviderAdapter):
         cfg: float | None = None, image: str | None = None,
         image2: str | None = None, image3: str | None = None,
         extra_headers: Dict[str, str] | None = None,
+        provider_options: Dict[str, Any] | None = None,
     ):
         url = (base_url or "https://openrouter.ai/api/v1").rstrip("/") + "/chat/completions"
         text = prompt if not negative_prompt else f"{prompt}\n\n[Negative prompt]: {negative_prompt}"
