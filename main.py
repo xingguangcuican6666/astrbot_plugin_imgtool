@@ -285,7 +285,7 @@ class ImgToolPlugin(Star):
             "app_id": (self.config.get("app_id") or provider_cfg.get("app_id") or "").strip(),
             "api_secret": (self.config.get("api_secret") or provider_cfg.get("api_secret") or "").strip(),
             "uid": (self.config.get("uid") or provider_cfg.get("uid") or "").strip(),
-            "patch_id": self.config.get("patch_id") or provider_cfg.get("patch_id"),
+            "patch_id": self.config.get("patch_id") or provider_cfg.get("patch_id") or "",
             "scheduler": (self.config.get("scheduler") or provider_cfg.get("scheduler") or "DPM++ 2M Karras").strip(),
             "width": width,
             "height": height,

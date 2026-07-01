@@ -27,6 +27,23 @@ SUPPORTED_SIZES = {
 
 
 class XfyunSparkAdapter(ImageProviderAdapter):
+    @staticmethod
+    def _normalize_patch_id(value: Any) -> List[str]:
+        if value is None:
+            return []
+        if isinstance(value, str):
+            parts = [p.strip() for p in value.replace("\n", ",").split(",")]
+            return [p for p in parts if p]
+        if isinstance(value, (list, tuple, set)):
+            items: List[str] = []
+            for item in value:
+                s = str(item).strip()
+                if s:
+                    items.append(s)
+            return items
+        s = str(value).strip()
+        return [s] if s else []
+
     def _build_auth_url(self, base_url: str, api_key: str, api_secret: str) -> str:
         parsed = urlparse(base_url)
         host = parsed.netloc
@@ -88,7 +105,7 @@ class XfyunSparkAdapter(ImageProviderAdapter):
         app_id = str(opts.get("app_id") or "").strip()
         api_secret = str(opts.get("api_secret") or "").strip()
         uid = str(opts.get("uid") or "").strip()
-        patch_id = opts.get("patch_id")
+        patch_ids = self._normalize_patch_id(opts.get("patch_id"))
         scheduler = str(opts.get("scheduler") or DEFAULT_SCHEDULER).strip() or DEFAULT_SCHEDULER
 
         if not app_id or not api_key or not api_secret:
@@ -123,11 +140,13 @@ class XfyunSparkAdapter(ImageProviderAdapter):
             # 官方文档注明 FLUX.1-dev 参数固定为默认值，避免下发自定义值触发错误。
             chat_params = {"domain": domain}
 
-        header: Dict[str, Any] = {"app_id": app_id}
+        header: Dict[str, Any] = {
+            "app_id": app_id,
+            # 实际接口会校验 header.patch_id 字段存在；无值时先显式传空数组。
+            "patch_id": patch_ids,
+        }
         if uid:
             header["uid"] = uid
-        if patch_id:
-            header["patch_id"] = patch_id
 
         payload: Dict[str, Any] = {
             "message": {

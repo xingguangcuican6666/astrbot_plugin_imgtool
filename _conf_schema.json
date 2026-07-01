@@ -190,6 +190,11 @@
         "description": "可选：用户唯一 ID，最长 32 字符",
         "type": "string",
         "default": ""
+      },
+      "patch_id": {
+        "description": "可选：讯飞 patch_id/resourceId；多个可用逗号分隔。部分模型实际要求必填",
+        "type": "string",
+        "default": ""
       }
     }
   },

@@ -34,6 +34,7 @@
 - 配置 `provider=xfyun`
 - 需要填写 `app_id`、`api_key`、`api_secret` 和 `model`
 - `model` 对应讯飞控制台里的 `modelID/domain`
+- 如控制台或接口返回要求 `patch_id`，请填写对应模型服务卡片里的 `resourceId`；多个值可用逗号分隔
 - 可留空 `base_url`，适配器默认使用 `https://maas-api.cn-huabei-1.xf-yun.com/v2.1/tti`
 - 支持 `negative_prompt`
 - 支持的分辨率：`768x768`、`1024x1024`、`576x1024`、`768x1024`、`1024x576`、`1024x768`
