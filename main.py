@@ -63,13 +63,15 @@ class ImgToolPlugin(Star):
 
         # 注册 LLM Tool：imagine（供 LLM 调用的图片生成工具）
         try:
-            self.context.add_llm_tools(ImagineTool(plugin=self))
+            self.imagine_tool = ImagineTool(plugin=self)
+            self.context.add_llm_tools(self.imagine_tool)
             logger.info(f"[{PLUGIN_ID}] LLM tool 'imagine' registered via add_llm_tools")
         except Exception as e:
             # 兼容旧版本：直接往 llm_tools.func_list 里追加
             try:
+                self.imagine_tool = ImagineTool(plugin=self)
                 tool_mgr = self.context.provider_manager.llm_tools
-                tool_mgr.func_list.append(ImagineTool(plugin=self))
+                tool_mgr.func_list.append(self.imagine_tool)
                 logger.info(f"[{PLUGIN_ID}] LLM tool 'imagine' registered via legacy func_list")
             except Exception as ee:
                 logger.error(
@@ -219,6 +221,35 @@ class ImgToolPlugin(Star):
         if provider == "openrouter":
             _set_if_present("openrouter_referer", "referer")
             _set_if_present("openrouter_title", "title")
+
+    def _refresh_imagine_tool(self) -> None:
+        tools = []
+        imagine_tool = getattr(self, "imagine_tool", None)
+        if imagine_tool is not None:
+            tools.append(imagine_tool)
+
+        try:
+            tool_mgr = self.context.provider_manager.llm_tools
+            func_list = getattr(tool_mgr, "func_list", None)
+            if isinstance(func_list, list):
+                for tool in func_list:
+                    if getattr(tool, "name", "") == "imagine" and getattr(tool, "plugin", None) is self:
+                        tools.append(tool)
+        except Exception:
+            pass
+
+        seen = set()
+        for tool in tools:
+            if id(tool) in seen:
+                continue
+            seen.add(id(tool))
+            refresh = getattr(tool, "refresh_schema", None)
+            if not callable(refresh):
+                continue
+            try:
+                refresh()
+            except Exception as e:
+                logger.error(f"[{PLUGIN_ID}] refresh imagine tool schema failed: {e}", exc_info=True)
 
     def _migrate_legacy_config(self) -> None:
         """把旧版全局配置转换为按 provider 分组的配置。"""
@@ -476,6 +507,7 @@ class ImgToolPlugin(Star):
         self.config["provider"] = provider
         # 切换后即刻按新 provider 摊平一次，方便后续使用
         self._prepare_flat_config_for_provider(provider)
+        self._refresh_imagine_tool()
 
         if hasattr(self.config, "save_config"):
             try:
@@ -517,11 +549,11 @@ class ImgToolPlugin(Star):
             guidance_scale(number): 提示词遵循度（0-20）
             seed(number): 随机种子（0-9999999999）
             batch_size(number): 生成数量（1-4）
-            cfg(number): 仅 Qwen-Image 支持的 CFG
-            image(string): 参考图（base64 或 URL）
-            image2(string): 参考图2（仅 Qwen-Image-Edit-2509）
-            image3(string): 参考图3（仅 Qwen-Image-Edit-2509）
-            use_refs(boolean): 是否自动使用本条消息里的图片/被引用消息里的图片作为参考图
+            cfg(number): 仅 Qwen-Image 支持；讯飞不支持
+            image(string): 参考图（base64 或 URL；仅当前 provider 支持时可用）
+            image2(string): 参考图2（仅 Qwen-Image-Edit-2509 且当前 provider 支持时可用）
+            image3(string): 参考图3（仅 Qwen-Image-Edit-2509 且当前 provider 支持时可用）
+            use_refs(boolean): 是否自动使用本条消息里的图片/被引用消息里的图片作为参考图（仅当前 provider 支持时可用）
         """
         provider = self._current_provider()
         self._prepare_flat_config_for_provider(provider)

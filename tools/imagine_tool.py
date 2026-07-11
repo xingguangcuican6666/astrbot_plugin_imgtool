@@ -20,67 +20,109 @@ class ImagineTool(FunctionTool):
 
     plugin: Any | None = None
     name: str = "imagine"
-    description: str = "生成图片。根据提示词和可选参考图生成图片，并将结果发送给用户。"
-    parameters: dict = field(
-        default_factory=lambda: {
-            "type": "object",
-            "properties": {
-                "prompt": {
-                    "type": "string",
-                    "description": "文生图提示词",
-                },
-                "size": {
-                    "type": "string",
-                    "description": "图像分辨率，形如 '宽x高'，例如 '1024x1024'",
-                },
-                "model": {
-                    "type": "string",
-                    "description": "模型名称（为空则使用插件配置中的默认模型）",
-                },
-                "negative_prompt": {
-                    "type": "string",
-                    "description": "反向提示词，用于指定不希望出现的内容",
-                },
-                "steps": {
-                    "type": "number",
-                    "description": "推理步数，范围约 1-100",
-                },
-                "guidance_scale": {
-                    "type": "number",
-                    "description": "提示词遵循度，范围约 0-20",
-                },
-                "seed": {
-                    "type": "number",
-                    "description": "随机种子，范围约 -9999999999 到 9999999999",
-                },
-                "batch_size": {
-                    "type": "number",
-                    "description": "生成数量，范围约 1-4",
-                },
-                "cfg": {
-                    "type": "number",
-                    "description": "仅 Qwen-Image 支持的 CFG 参数",
-                },
-                "image": {
-                    "type": "string",
-                    "description": "参考图（base64 或 URL）",
-                },
-                "image2": {
-                    "type": "string",
-                    "description": "参考图2（仅 Qwen-Image-Edit-2509 使用）",
-                },
-                "image3": {
-                    "type": "string",
-                    "description": "参考图3（仅 Qwen-Image-Edit-2509 使用）",
-                },
-                "use_refs": {
-                    "type": "boolean",
-                    "description": "是否自动使用本条消息或被引用消息中的图片作为参考图",
-                },
+    description: str = "生成图片，并将结果发送给用户。"
+    parameters: dict = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        self.refresh_schema()
+
+    def _current_provider(self) -> str:
+        if self.plugin is None:
+            return ""
+        getter = getattr(self.plugin, "_current_provider", None)
+        if not callable(getter):
+            return ""
+        try:
+            return str(getter() or "").strip().lower()
+        except Exception:
+            return ""
+
+    def refresh_schema(self) -> None:
+        provider = self._current_provider()
+        size_desc = "图像分辨率，形如 '宽x高'，例如 '1024x1024'"
+        model_desc = "模型名称（为空则使用插件配置中的默认模型）"
+        batch_desc = "生成数量，范围约 1-4"
+
+        if provider == "xfyun":
+            size_desc = (
+                "图像分辨率；讯飞仅支持 "
+                "'768x768'、'1024x1024'、'576x1024'、'768x1024'、'1024x576'、'1024x768'"
+            )
+            model_desc = "讯飞控制台中的文生图 modelID/domain（为空则使用插件配置）"
+            batch_desc = "生成数量；讯飞会强制为 1"
+            self.description = (
+                "生成图片。当前 provider 为讯飞，仅支持文生图；"
+                "不要传参考图、use_refs 或 cfg，生成结果会发送给用户。"
+            )
+        else:
+            self.description = "生成图片。根据提示词和可选参考图生成图片，并将结果发送给用户。"
+
+        properties = {
+            "prompt": {
+                "type": "string",
+                "description": "文生图提示词",
             },
+            "size": {
+                "type": "string",
+                "description": size_desc,
+            },
+            "model": {
+                "type": "string",
+                "description": model_desc,
+            },
+            "negative_prompt": {
+                "type": "string",
+                "description": "反向提示词，用于指定不希望出现的内容",
+            },
+            "steps": {
+                "type": "number",
+                "description": "推理步数，范围约 1-100",
+            },
+            "guidance_scale": {
+                "type": "number",
+                "description": "提示词遵循度，范围约 0-20",
+            },
+            "seed": {
+                "type": "number",
+                "description": "随机种子，范围约 -9999999999 到 9999999999",
+            },
+            "batch_size": {
+                "type": "number",
+                "description": batch_desc,
+            },
+        }
+
+        if provider != "xfyun":
+            properties.update(
+                {
+                    "cfg": {
+                        "type": "number",
+                        "description": "仅 Qwen-Image 支持的 CFG 参数",
+                    },
+                    "image": {
+                        "type": "string",
+                        "description": "参考图（base64 或 URL）",
+                    },
+                    "image2": {
+                        "type": "string",
+                        "description": "参考图2（仅 Qwen-Image-Edit-2509 使用）",
+                    },
+                    "image3": {
+                        "type": "string",
+                        "description": "参考图3（仅 Qwen-Image-Edit-2509 使用）",
+                    },
+                    "use_refs": {
+                        "type": "boolean",
+                        "description": "是否自动使用本条消息或被引用消息中的图片作为参考图",
+                    },
+                }
+            )
+
+        self.parameters = {
+            "type": "object",
+            "properties": properties,
             "required": ["prompt"],
         }
-    )
 
     async def call(
         self,
@@ -113,4 +155,3 @@ class ImagineTool(FunctionTool):
             image3=kwargs.get("image3", ""),
             use_refs=kwargs.get("use_refs", False),
         )
-
